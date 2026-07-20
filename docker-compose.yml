@@ -1,6 +1,6 @@
 services:
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v3.13.0
     container_name: prometheus
     restart: unless-stopped
     volumes:
@@ -10,14 +10,23 @@ services:
       - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
     networks:
       - monitoring
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 512M
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:13.1.0
     container_name: grafana
     restart: unless-stopped
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}
     volumes:
       - grafana_data:/var/lib/grafana
     ports:
@@ -26,25 +35,68 @@ services:
       - monitoring
     depends_on:
       - prometheus
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 512M
 
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:latest
+    image: gcr.io/cadvisor/cadvisor:v0.55.1
     container_name: cadvisor
     restart: unless-stopped
-    privileged: true
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
       - /dev/disk/:/dev/disk:ro
-    ports:
-      - "127.0.0.1:${CADVISOR_PORT:-8080}:8080"
     networks:
       - monitoring
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: "0.30"
+          memory: 256M
+
+  cadvisor-proxy:
+    image: mgcrp/mgcrp-vpn-cadvisor-proxy@sha256:7a32810d99fa637d44fa75315992130d8dcb98716ab2ddef9af9b82c9ff3e55f
+    container_name: cadvisor-proxy
+    restart: unless-stopped
+    depends_on:
+      - cadvisor
+    environment:
+      CADVISOR_AUTH_USER: ${CADVISOR_AUTH_USER:?Set CADVISOR_AUTH_USER in .env}
+      CADVISOR_AUTH_PASSWORD: ${CADVISOR_AUTH_PASSWORD:?Set CADVISOR_AUTH_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:${CADVISOR_PORT:-8080}:80"
+    networks:
+      - monitoring
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: "0.10"
+          memory: 64M
 
   node-exporter:
-    image: prom/node-exporter:latest
+    image: prom/node-exporter:v1.11.1
     container_name: node-exporter
     restart: unless-stopped
     command:
@@ -60,6 +112,15 @@ services:
       - "127.0.0.1:${NODE_EXPORTER_PORT:-9100}:9100"
     networks:
       - monitoring
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: "0.20"
+          memory: 128M
 
 networks:
   monitoring:

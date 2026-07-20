@@ -12,16 +12,20 @@ scrape_configs:
       - targets: ["localhost:9090"]
 
   # cAdvisor - container metrics
+  # cAdvisor has no authentication of its own, so it's only reachable
+  # through the cadvisor-proxy service (nginx + basic auth). Credentials
+  # below must match CADVISOR_AUTH_USER/CADVISOR_AUTH_PASSWORD in .env.
+  # Remote hosts must run their own cadvisor + cadvisor-proxy pair.
   - job_name: "cadvisor"
     basic_auth:
       username: "myuser"
       password: "mypassword"
     static_configs:
       # local host
-      - targets: ["cadvisor:8080"]
+      - targets: ["cadvisor-proxy:80"]
         labels:
           host: "localhost"
-      # remote hosts - add one line per host running cadvisor
+      # remote hosts - add one line per host running cadvisor-proxy
       - targets:
           - "192.168.1.10:8080"
           - "192.168.1.11:8080"
