@@ -13,6 +13,9 @@ scrape_configs:
 
   # cAdvisor - container metrics
   - job_name: "cadvisor"
+    basic_auth:
+      username: "myuser"
+      password: "mypassword"
     static_configs:
       # local host
       - targets: ["cadvisor:8080"]
